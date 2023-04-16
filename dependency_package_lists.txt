@@ -1,0 +1,4 @@
+#for testing using
+    ## go get github.com/stretchr/testify
+#for env
+   ## go get github.com/spf13/viper
