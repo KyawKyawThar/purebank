@@ -36,7 +36,7 @@ func (s *Server) createUser(c *gin.Context) {
 	fmt.Println("createUser")
 	var req createUserRequest
 
-	if err := c.ShouldBind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
@@ -87,7 +87,7 @@ func (s *Server) loginUser(c *gin.Context) {
 
 	var req logInUserRequest
 
-	if err := c.ShouldBind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
