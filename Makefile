@@ -18,4 +18,8 @@ sqlc:
 test:
 	go test -v -cover -short ./...
 
+#purebank/db get from go.mod module sometime it can be github.com/KKT/purebank
+mock:
+	mockgen -package mockdb -destination db/mock/store.go purebank/db/sqlc Store
+
 .PHONY:postgres createdb new_migration migrateup migratedown sqlc test

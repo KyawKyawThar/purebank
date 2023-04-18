@@ -2,3 +2,12 @@
     ## go get github.com/stretchr/testify
 #for env
    ## go get github.com/spf13/viper
+#for PostgreSQL database driver
+    ## go get github.com/jackc/pgx/v5
+# for web framework we use gin
+    ## go get "github.com/gin-gonic/gin"
+
+# for postgresql custom err checking
+    ## go get github.com/lib/pq
+# test db using mock
+  ## go install github.com/golang/mock/mockgen@v1.6.0

@@ -59,6 +59,7 @@ func OpenDB() *sql.DB {
 
 }
 
+// ConnectDB is try to connect sql db using pgx driver
 func ConnectDB(dsn string) (*sql.DB, error) {
 
 	db, err := sql.Open("pgx", dsn)
