@@ -36,7 +36,7 @@ func CreateTestUser(t *testing.T) Users {
 	return user
 }
 
-func TestUser(t *testing.T) {
+func TestCreateUser(t *testing.T) {
 	CreateTestUser(t)
 }
 

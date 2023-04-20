@@ -60,6 +60,7 @@ func (s *Server) createUser(c *gin.Context) {
 	if err != nil {
 
 		if pgErr, ok := err.(*pgconn.PgError); ok {
+
 			switch pgErr.Routine {
 			case "_bt_check_unique":
 
