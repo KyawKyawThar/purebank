@@ -3,10 +3,13 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/hibiken/asynq"
+	logs "github.com/rs/zerolog/log"
 	"log"
 	"purebank/api"
 	db "purebank/db/sqlc"
 	"purebank/db/util"
+	"purebank/worker"
 	"time"
 
 	_ "github.com/golang/mock/mockgen/model"
@@ -18,7 +21,9 @@ var counts int64
 
 func main() {
 
-	sqlStore := OpenDB()
+	config, err := util.LoadConfig(".")
+
+	sqlStore := OpenDB(config.DBSource)
 
 	if sqlStore == nil {
 		log.Panic("can't connect to postgres!")
@@ -26,16 +31,23 @@ func main() {
 
 	store := db.NewStore(sqlStore)
 
-	server, err := api.NewServer(store)
+	redisOpt := asynq.RedisClientOpt{
+		Addr: config.RedisAddress,
+	}
+
+	taskDistributor := worker.NewRedisTasksDestributor(redisOpt)
+
+	server, err := api.NewServer(config, store, taskDistributor)
 
 	if err != nil {
 		log.Fatal("Cannot create server", err)
 	}
-	config, err := util.LoadConfig(".")
 
 	if err != nil {
 		log.Fatal("Cannot load config err:", err)
 	}
+
+	go runTaskProcessor(redisOpt, store)
 
 	err = server.Start(config.ServerAddress)
 
@@ -47,17 +59,24 @@ func main() {
 
 }
 
-// OpenDB is a open sql database and limit time to connect to sqldb and wait
-// some giving time to connect db
-func OpenDB() *sql.DB {
-	config, err := util.LoadConfig(".")
+func runTaskProcessor(clientOpts asynq.RedisClientOpt, store db.Store) {
+	taskProcessor := worker.NewRedisTaskProcessor(clientOpts, store)
+	logs.Info().Msg("start task processor")
+	err := taskProcessor.Start()
 
 	if err != nil {
-		log.Fatal("Cannot load config err:", err)
+		logs.Fatal().Err(err).Msg("failed to start task processor")
+
 	}
 
+}
+
+// OpenDB is a open sql database and limit time to connect to sqldb and wait
+// some giving time to connect db
+func OpenDB(dbsource string) *sql.DB {
+
 	for {
-		connection, err := ConnectDB(config.DBSource)
+		connection, err := ConnectDB(dbsource)
 
 		if err != nil {
 			fmt.Println("Postgres not ready....")

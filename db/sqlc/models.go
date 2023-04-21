@@ -6,7 +6,20 @@ package db
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type Sessions struct {
+	ID           uuid.UUID `json:"id"`
+	Username     string    `json:"username"`
+	RefreshToken string    `json:"refresh_token"`
+	UserAgent    string    `json:"user_agent"`
+	ClientIp     string    `json:"client_ip"`
+	IsBlock      bool      `json:"is_block"`
+	ExpiredAt    time.Time `json:"expired_at"`
+	CreatedAt    time.Time `json:"created_at"`
+}
 
 type Users struct {
 	Username          string    `json:"username"`

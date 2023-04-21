@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgconn"
 	"net/http"
 	db "purebank/db/sqlc"
 	"purebank/db/util"
+	"purebank/worker"
 	"time"
 )
 
@@ -23,6 +25,15 @@ type logInUserRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+type logInUserResponse struct {
+	SessionID           uuid.UUID `json:"session_id"`
+	AccessToken         string    `json:"access_token"`
+	AccessTokenExpired  time.Time `json:"access_token_expired"`
+	RefreshToken        string    `json:"refresh_token"`
+	RefreshTokenExpired time.Time `json:"refresh_token_expired"`
+	User                userResponse
+}
+
 type userResponse struct {
 	UserName          string    `json:"username"`
 	Email             string    `json:"email" `
@@ -31,9 +42,19 @@ type userResponse struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+func newUserResponse(user db.Users) userResponse {
+
+	return userResponse{
+		UserName:          user.Username,
+		Email:             user.Email,
+		FirstName:         user.FirstName,
+		PasswordChangedAt: user.PasswordChangedAt,
+		CreatedAt:         user.CreatedAt,
+	}
+}
+
 func (s *Server) createUser(c *gin.Context) {
 
-	fmt.Println("createUser")
 	var req createUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,14 +69,29 @@ func (s *Server) createUser(c *gin.Context) {
 		return
 	}
 
-	arg := db.CreateUserParams{
-		Username:  req.UserName,
-		Password:  hashPassword,
-		Email:     req.Email,
-		FirstName: req.FirstName,
+	arg := db.CreateUserTxParams{
+		CreateUserParams: db.CreateUserParams{
+			Username:  req.UserName,
+			Password:  hashPassword,
+			Email:     req.Email,
+			FirstName: req.FirstName,
+		},
+		AfterCreate: func(users db.Users) error {
+			opts := []asynq.Option{
+				asynq.MaxRetry(10),
+				asynq.ProcessIn(10 * time.Second), //delay
+				asynq.Queue(worker.CriticalQueue),
+			}
+
+			taskPayloadEmail := &worker.PayloadSendVerifyEmail{Username: users.Username}
+			return s.taskdistributor.DistributorSendVerifyEmail(c, taskPayloadEmail, opts...)
+
+		},
 	}
 
-	user, err := s.store.CreateUser(c, arg)
+	//user, err := s.store.CreateUserTx(c, arg)
+
+	txResult, err := s.store.CreateUserTx(c, arg)
 
 	if err != nil {
 
@@ -72,13 +108,9 @@ func (s *Server) createUser(c *gin.Context) {
 		return
 	}
 
-	res := userResponse{
-		UserName:          user.Username,
-		Email:             user.Email,
-		FirstName:         user.FirstName,
-		PasswordChangedAt: user.PasswordChangedAt,
-		CreatedAt:         user.CreatedAt,
-	}
+	//Send verify email to user
+
+	res := newUserResponse(txResult.Users)
 
 	c.JSON(http.StatusOK, res)
 
@@ -112,12 +144,44 @@ func (s *Server) loginUser(c *gin.Context) {
 		return
 	}
 
-	res := userResponse{
-		UserName:          user.Username,
-		Email:             user.Email,
-		FirstName:         user.FirstName,
-		PasswordChangedAt: user.PasswordChangedAt,
-		CreatedAt:         user.CreatedAt,
+	accessToken, accessPayload, err := s.maker.CreateToken(user.Username, s.config.TokenDuration)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	refreshToken, refreshPayload, err := s.maker.CreateToken(user.Username, s.config.RefreshTokenDuration)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	arg := db.CreateSessionParams{
+		ID:           refreshPayload.ID,
+		Username:     refreshPayload.Username,
+		RefreshToken: refreshToken,
+		UserAgent:    c.Request.UserAgent(),
+		ClientIp:     c.ClientIP(),
+		IsBlock:      false,
+		ExpiredAt:    refreshPayload.Expiration,
+	}
+
+	session, err := s.store.CreateSession(c, arg)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	res := logInUserResponse{
+		SessionID:           session.ID,
+		AccessToken:         accessToken,
+		AccessTokenExpired:  accessPayload.Expiration,
+		RefreshToken:        refreshToken,
+		RefreshTokenExpired: refreshPayload.Expiration,
+		User:                newUserResponse(user),
 	}
 
 	c.JSON(http.StatusOK, res)

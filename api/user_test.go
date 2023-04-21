@@ -216,7 +216,7 @@ func TestCreateUserAPI(t *testing.T) {
 
 			require.NoError(t, err)
 
-			server, err := NewServer(store)
+			server := newTestServer(t, store)
 
 			r := httptest.NewRecorder()
 
@@ -246,6 +246,7 @@ func TestLogInUserAPI(t *testing.T) {
 			buildStubs: func(store *mockdb.MockStore) {
 
 				store.EXPECT().GetUser(gomock.Any(), gomock.Eq(user.Username)).Times(1).Return(user, nil)
+				store.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Times(1)
 
 			},
 			checkResponse: func(r *httptest.ResponseRecorder) {
@@ -326,9 +327,7 @@ func TestLogInUserAPI(t *testing.T) {
 			store := mockdb.NewMockStore(ctrl)
 			tc.buildStubs(store)
 
-			server, err := NewServer(store)
-
-			require.NoError(t, err)
+			server := newTestServer(t, store)
 
 			r := httptest.NewRecorder()
 

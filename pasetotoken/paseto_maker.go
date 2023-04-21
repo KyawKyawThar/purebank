@@ -13,8 +13,8 @@ type PasetoMaker struct {
 	symmetricKey paseto.V4SymmetricKey
 }
 
-// NewPasetoMake create a new PasetoMaker
-func NewPasetoMake(symmetricKey string) (Maker, error) {
+// NewPasetoMaker create a new PasetoMaker
+func NewPasetoMaker(symmetricKey string) (Maker, error) {
 
 	if len(symmetricKey) != chacha20.KeySize {
 		return nil, fmt.Errorf("invalid key size: must be exactly %d characters", chacha20.KeySize)
@@ -24,11 +24,12 @@ func NewPasetoMake(symmetricKey string) (Maker, error) {
 }
 
 // CreateToken is a paseto createToken
-func (p PasetoMaker) CreateToken(username string, duration time.Duration) (string, error) {
+func (p PasetoMaker) CreateToken(username string, duration time.Duration) (string, *Payload, error) {
 
 	payload, err := NewPayload(username, duration)
+
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	token := paseto.NewToken()
@@ -40,7 +41,7 @@ func (p PasetoMaker) CreateToken(username string, duration time.Duration) (strin
 
 	v4token := token.V4Encrypt(p.symmetricKey, nil)
 
-	return v4token, nil
+	return v4token, payload, nil
 
 }
 
@@ -52,8 +53,8 @@ func (p PasetoMaker) VerifiedToken(token string) (*Payload, error) {
 	t, err := parser.ParseV4Local(p.symmetricKey, token, nil)
 
 	if err != nil {
-		fmt.Println("verifiedToken: ", err)
-		return nil, err
+
+		return nil, ErrInvalidToken
 	}
 
 	id, err := t.GetString("ID")
