@@ -41,6 +41,7 @@ func (s *Server) setUpRouter() {
 
 	r := gin.Default()
 
+	r.GET("/verify_email", s.verifyEmail)
 	r.POST("/user", s.createUser)
 	r.POST("/user/login", s.loginUser)
 	r.POST("/tokens/renew_access", s.renewAccessToken)

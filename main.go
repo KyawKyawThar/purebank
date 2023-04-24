@@ -9,6 +9,7 @@ import (
 	"purebank/api"
 	db "purebank/db/sqlc"
 	"purebank/db/util"
+	"purebank/mail"
 	"purebank/worker"
 	"time"
 
@@ -47,7 +48,7 @@ func main() {
 		log.Fatal("Cannot load config err:", err)
 	}
 
-	go runTaskProcessor(redisOpt, store)
+	go runTaskProcessor(config, redisOpt, store)
 
 	err = server.Start(config.ServerAddress)
 
@@ -59,8 +60,11 @@ func main() {
 
 }
 
-func runTaskProcessor(clientOpts asynq.RedisClientOpt, store db.Store) {
-	taskProcessor := worker.NewRedisTaskProcessor(clientOpts, store)
+func runTaskProcessor(config util.Config, clientOpts asynq.RedisClientOpt, store db.Store) {
+
+	mailer := mail.NewGmailSender(config.EmailSenderName, config.EmailSenderAddress, config.EmailSenderPassword)
+
+	taskProcessor := worker.NewRedisTaskProcessor(clientOpts, store, mailer)
 	logs.Info().Msg("start task processor")
 	err := taskProcessor.Start()
 

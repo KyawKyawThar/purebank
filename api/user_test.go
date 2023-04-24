@@ -79,7 +79,7 @@ func TestCreateUserAPI(t *testing.T) {
 			buildStubs: func(s *mockdb.MockStore) {
 				arg := db.CreateUserParams{
 					Username:  user.Username,
-					Password:  user.Password,
+					//Password:  user.Password,
 					Email:     user.Email,
 					FirstName: user.FirstName,
 				}

@@ -10,6 +10,7 @@ import (
 type Store interface {
 	Querier
 	CreateUserTx(ctx context.Context, arg CreateUserTxParams) (CreateUserTxResult, error)
+	VerifyEmailTx(ctx context.Context, arg VerifyEmailTxParams) (VerifyEmailTxResult, error)
 }
 
 // SQLStore provides all functions to execute SQL queries and transaction
@@ -27,10 +28,10 @@ func NewStore(db *sql.DB) Store {
 }
 
 // ExecTx executes a function within a database transaction
-func (s *SQLStore) ExecTx(ctx context.Context, fn func(*Queries) error) error {
+func (store *SQLStore) ExecTx(ctx context.Context, fn func(*Queries) error) error {
 
 	// Get a Tx for making transaction requests.
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := store.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

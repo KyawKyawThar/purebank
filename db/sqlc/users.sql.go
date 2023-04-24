@@ -7,11 +7,12 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, password, email, first_name)
-VALUES ($1, $2, $3, $4) RETURNING username, password, email, first_name, password_changed_at, created_at
+VALUES ($1, $2, $3, $4) RETURNING username, password, email, first_name, password_changed_at, created_at, is_email_verified
 `
 
 type CreateUserParams struct {
@@ -36,12 +37,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Users, 
 		&i.FirstName,
 		&i.PasswordChangedAt,
 		&i.CreatedAt,
+		&i.IsEmailVerified,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT username, password, email, first_name, password_changed_at, created_at
+SELECT username, password, email, first_name, password_changed_at, created_at, is_email_verified
 FROM users
 WHERE username = $1 LIMIT 1
 `
@@ -56,6 +58,55 @@ func (q *Queries) GetUser(ctx context.Context, username string) (Users, error) {
 		&i.FirstName,
 		&i.PasswordChangedAt,
 		&i.CreatedAt,
+		&i.IsEmailVerified,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+
+
+
+UPDATE users
+SET password            = coalesce($1, password),
+    password_changed_at = coalesce($2, password_changed_at),
+    first_name          = coalesce($3, first_name),
+    email               = coalesce($4, email),
+    is_email_verified   = coalesce($5, is_email_verified)
+WHERE username = coalesce($6, username) RETURNING username, password, email, first_name, password_changed_at, created_at, is_email_verified
+`
+
+type UpdateUserParams struct {
+	Password          sql.NullString `json:"password"`
+	PasswordChangedAt sql.NullTime   `json:"password_changed_at"`
+	FirstName         sql.NullString `json:"first_name"`
+	Email             sql.NullString `json:"email"`
+	IsEmailVerified   sql.NullBool   `json:"is_email_verified"`
+	Username          string         `json:"username"`
+}
+
+// COALESCE return first null value
+// SELECT COALESCE(NULL, NULL, 2, 'W3Schools.com'); return 2
+// using nullable argument feature of sqlc so that each fields
+// can updated independently without affecting each other
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (Users, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.Password,
+		arg.PasswordChangedAt,
+		arg.FirstName,
+		arg.Email,
+		arg.IsEmailVerified,
+		arg.Username,
+	)
+	var i Users
+	err := row.Scan(
+		&i.Username,
+		&i.Password,
+		&i.Email,
+		&i.FirstName,
+		&i.PasswordChangedAt,
+		&i.CreatedAt,
+		&i.IsEmailVerified,
 	)
 	return i, err
 }

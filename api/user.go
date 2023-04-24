@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -10,6 +11,7 @@ import (
 	db "purebank/db/sqlc"
 	"purebank/db/util"
 	"purebank/worker"
+	"strconv"
 	"time"
 )
 
@@ -40,6 +42,10 @@ type userResponse struct {
 	FirstName         string    `json:"first_name"`
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 	CreatedAt         time.Time `json:"created_at"`
+}
+
+type verifyEmailResponse struct {
+	IsVerified bool `json:"is_verified"`
 }
 
 func newUserResponse(user db.Users) userResponse {
@@ -185,4 +191,32 @@ func (s *Server) loginUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, res)
+}
+
+func (s *Server) verifyEmail(c *gin.Context) {
+
+	id := c.Query("email_id")
+	secretCode := c.Query("secret_code")
+
+	emailId, _ := strconv.Atoi(id)
+
+	txResult, err := s.store.VerifyEmailTx(c, db.VerifyEmailTxParams{
+		EmailId:    int64(emailId),
+		SecretCode: secretCode,
+	})
+
+	fmt.Println("verifyEmail func.......................", txResult)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to verified email",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_verified": txResult.VerifyEmails.IsUsed,
+	})
+
 }

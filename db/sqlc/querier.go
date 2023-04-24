@@ -13,8 +13,15 @@ import (
 type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Sessions, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
+	CreateVerifyEmail(ctx context.Context, arg CreateVerifyEmailParams) (VerifyEmails, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Sessions, error)
 	GetUser(ctx context.Context, username string) (Users, error)
+	// COALESCE return first null value
+	// SELECT COALESCE(NULL, NULL, 2, 'W3Schools.com'); return 2
+	// using nullable argument feature of sqlc so that each fields
+	// can updated independently without affecting each other
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (Users, error)
+	UpdateVerifyEmail(ctx context.Context, arg UpdateVerifyEmailParams) (VerifyEmails, error)
 }
 
 var _ Querier = (*Queries)(nil)

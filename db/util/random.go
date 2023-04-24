@@ -45,3 +45,5 @@ func RandomEmail(l int) string {
 
 	return fmt.Sprintf("%s@gmail.com", RandomString(l))
 }
+
+

@@ -27,4 +27,14 @@
 #The zerolog package provides a fast and simple logger dedicated to JSON output.
  ## go get -u github.com/rs/zerolog/log
 
+##The email package is designed to be simple to use,
+##but flexible enough so as not to be restrictive. The goal is
+##to provide an email interface for humans.
+## go get github.com/jordan-wright/email
+
+
+
+
+
+
 

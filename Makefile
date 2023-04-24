@@ -20,6 +20,7 @@ migrateup1:
 migratedown1:
 	migrate -path db/migration -database $(DB_URL) -verbose down 1
 
+
 sqlc:
 	sqlc generate
 
@@ -30,6 +31,7 @@ test:
 	go test -v -cover -short ./...
 
 #purebank/db get from go.mod module sometime it can be github.com/KKT/purebank
+#make new_migration name=add_verify_emails
 mock:
 	mockgen -package mockdb -destination db/mock/store.go purebank/db/sqlc Store
 
